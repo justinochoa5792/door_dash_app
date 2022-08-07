@@ -11,7 +11,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use(express.static(__dirname + "/frontend"));
-
+app.get("/order", (req, res) => {
+  res.render("order");
+});
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
@@ -32,12 +36,17 @@ app.post("/get-delivery-rate", async (req, res) => {
 
   const response = await client.deliveryQuote({
     external_delivery_id: uuidv4(),
-    pickup_address: "1000 4th Ave, Seattle, WA, 98104",
+    pickup_address: "11 Madison Ave, New York, NY 10010",
     pickup_phone_number: "+1(650)5555555",
-    dropoff_address: "1201 3rd Ave, Seattle, WA, 98101",
-    dropoff_phone_number: "+1(650)5555555",
+    pickup_business_name: "Top Clothing",
+    dropoff_address: `${req.body.street}, ${req.body.city}, ${req.body.zipcode}`,
+    dropoff_phone_number: req.body.dropoff_phone_number,
+    dropoff_contact_given_name: req.body.dropoff_contact_given_name,
+    dropoff_contact_family_name: req.body.dropoff_contact_family_name,
+    order_value: req.body.order_value,
   });
   res.send(response);
+  console.log("QUOTE", response);
 });
 
 app.post("/create-delivery", async (req, res) => {
@@ -48,7 +57,21 @@ app.post("/create-delivery", async (req, res) => {
   });
 
   const response = await client.deliveryQuoteAccept(
-    "dab2c1df-47c5-4a2d-87bf-4524317cd567"
+    "53b314ca-c95f-49b5-9625-9ae347428aac"
   );
-  res.send(response);
+  const clothingTotal = (response.data.order_value / 100).toFixed(2);
+  const feeTotal = (response.data.fee / 100).toFixed(2);
+  const orderTotal = Number(clothingTotal) + Number(feeTotal);
+
+  const data = {
+    clothingTotal: clothingTotal,
+    feeTotal: feeTotal,
+    orderTotal: orderTotal,
+  };
+
+  res.render("order", {
+    clothingTotal: data.clothingTotal,
+    feeTotal: data.feeTotal,
+    orderTotal: data.orderTotal,
+  });
 });
